@@ -1,7 +1,6 @@
 # SMPS Player/Extractor
 
-Original by Valley Bell (2014 - 2018)
-Modifications by EmreTech (2023)
+Original by Valley Bell (2014 - 2018), Modifications by EmreTech (2023)
 
 Version 3.0.0 (2023-07-28)
 
@@ -29,45 +28,55 @@ This program plays & dumps SMPS music files, a format commonly used in games for
 In order to play the SMPS files of a certain game, you need to load that game's config.ini.
 This is done by editing the config.ini in the folder where the SMPSPlay executable lies.
 
-Cursor Up/Down - change song
-Enter - play
-Space - pause/resume
-N - next song
-A - automatic progessing (plays the next song when a song is finished or played the configured amount of full loops (default 2))
-P - PAL mode on/off (affects only games that use VInt for timing)
-S - stop and mute music (calls the StopAllSound SMPS routine)
-F - fade music out (calls FadeOutMusic SMPS routine)
-V - enable/disable VGM logging
-J - toggle Conditional Jump variable
-ESC / Q - quit
+- Cursor Up/Down - change song
+- Enter - play
+- Space - pause/resume
+- N - next song
+- A - automatic progessing (plays the next song when a song is finished or played the configured amount of full loops (default 2))
+- P - PAL mode on/off (affects only games that use VInt for timing)
+- S - stop and mute music (calls the StopAllSound SMPS routine)
+- F - fade music out (calls FadeOutMusic SMPS routine)
+- V - enable/disable VGM logging
+- J - toggle Conditional Jump variable
+- ESC / Q - quit
 
 
 ## Channel Muting
 
-1-6 - mute/unmute YM2612 channel 1-6
- *  - mute/unmute YM2612 DAC channel
-7-9 - mute/unmute PSG channel 1-3
- 0  - mute/unmute PSG channel 4/noise
+- `1-6`: mute/unmute YM2612 channel 1-6
+-  `*`:  mute/unmute YM2612 DAC channel
+- `7-9`: mute/unmute PSG channel 1-3
+-  `0`:  mute/unmute PSG channel 4/noise
 
 
 ## About offsets for SMPS Z80-based songs
 
-In some cases, the autodetection for the in-ROM start offset of the song fails. Then you need to specify the original Z80 offset of the song. This can be done with the following file name format:
+In some cases, the autodetection for the in-ROM start offset of the song fails. Then you need to specify the original Z80 offset of the song. 
+
+This can be done with the following file name format:
+
+```
 Title.oooo.ext
-oooo is a 4-digit hexadecimal number and represents the original Z80 offset of the song. (It MUST be 4-digits long or it will be ignored.)
+```
+
+`oooo` is a 4-digit hexadecimal number and represents the original Z80 offset of the song. (It MUST be 4-digits long or it will be ignored.)
 This technique can also be used to specify the original start address of instrument tables.
 
 
 ## Credits
 
 This program was originally written by Valley Bell.
+
 Modifications to this program have been made by EmreTech.
 
 The sound emulation uses sound cores from MAME.
+
 The wave playback code was taken from VGMPlay.
+
 The SMPS engine code is based on disassemblies of various SMPS sound drivers.
 
 A huge thanks to the developers of IDA, The Interactive Disassembler. Disassembling the SMPS sound drivers would've been a lot harder without this great tool.
+
 Thanks to Xeeynamo for contributing.
 
 
@@ -77,14 +86,10 @@ Thanks to Xeeynamo for contributing.
 
 - 2023-07-28 - 3.0.0
 
-	Meta:
-
 	The README has been updated into a Markdown file
 
 	This program now complies with [Semantic Versioning](https://semver.org/). 
 	To represent this, the version has changed from what would have been 2.30 to 3.0.0.
-
-	Program:
 
 	Added song dumping, where each individual song that is played is dumped into its own file
 	
