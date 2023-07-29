@@ -94,6 +94,7 @@ static void YM2612_Callback(void *param, int irq);
 #define VOL_SHIFT		10	// 7 [main shift] + (8-5) [OutputVolume post-shift]
 
 AUDIO_CFG AudioCfg;
+char* WaveLogPath;
 static AUDIO_OPTS* audOpts;
 UINT32 SampleRate;	// Note: also used by some sound cores to determinate the chip sample rate
 INT32 OutputVolume = 0x100;
@@ -126,6 +127,7 @@ static UINT8 lastMutexLockMode;
 void InitAudioOutput(void)
 {
 	memset(&AudioCfg, 0x00, sizeof(AUDIO_CFG));
+	memset(&WaveLogPath, 0x00, sizeof(char));
 	
 	Audio_Init();
 	
@@ -323,7 +325,6 @@ UINT8 StartAudioOutput(void)
 {
 	UINT8 RetVal;
 	UINT32 idWaveOut;
-	UINT32 idWaveWrt;
 	AUDDRV_INFO* drvInfo;
 	AUDIO_OPTS* optsLog;
 	void* aDrv;
@@ -331,9 +332,8 @@ UINT8 StartAudioOutput(void)
 	if (DeviceState)
 		return 0x80;	// already running
 	
-	audDrv = audDrvLog = NULL;
+	audDrv = NULL;
 	idWaveOut = GetAudioDriver(ADRVTYPE_OUT, AudioCfg.AudAPIName);
-	idWaveWrt = GetAudioDriver(ADRVTYPE_DISK, "WaveWrite");
 	
 	RetVal = AudioDrv_Init(idWaveOut, &audDrv);
 	if (RetVal)
@@ -351,20 +351,7 @@ UINT8 StartAudioOutput(void)
 		DSound_SetHWnd(aDrv, hWndSnd);
 	}
 #endif
-	if (AudioCfg.LogWave && idWaveWrt != (UINT32)-1 && AudioCfg.WaveLogPath != NULL)
-	{
-		RetVal = AudioDrv_Init(idWaveWrt, &audDrvLog);
-		if (! RetVal)
-		{
-			Audio_GetDriverInfo(idWaveWrt, &drvInfo);
-			if (drvInfo->drvSig == ADRVSIG_WAVEWRT)
-			{
-				aDrv = AudioDrv_GetDrvData(audDrvLog);
-				WavWrt_SetFileName(aDrv, AudioCfg.WaveLogPath);
-			}
-		}
-	}
-	
+
 	audOpts = AudioDrv_GetOptions(audDrv);
 	if (AudioCfg.SamplePerSec)
 		audOpts->sampleRate = AudioCfg.SamplePerSec;
@@ -377,20 +364,15 @@ UINT8 StartAudioOutput(void)
 		audOpts->usecPerBuf = AudioCfg.AudioBufSize * 1000;
 	if (AudioCfg.Volume > 0.0f)
 		OutputVolume = (INT32)(AudioCfg.Volume * 0x100 + 0.5f);
-	if (audDrvLog != NULL)
-	{
-		optsLog = AudioDrv_GetOptions(audDrvLog);
-		*optsLog = *audOpts;
-	}
 	
 	AudioDrv_SetCallback(audDrv, FillBuffer, NULL);
-	if (audDrvLog != NULL)
+
+	if (AudioCfg.LogAllWave)
 	{
-		AudioDrv_DataForward_Add(audDrv, audDrvLog);
-		RetVal = AudioDrv_Start(audDrvLog, 0);
-		if (RetVal)
-			AudioDrv_Deinit(&audDrvLog);
+		InitAudioLogging();
+		StartAudioLogging();
 	}
+
 	OSMutex_Init(&hMutex, 0);
 	lastMutexLockMode = 0;
 	InitalizeChips();
@@ -417,16 +399,104 @@ UINT8 StopAudioOutput(void)
 		RetVal = AudioDrv_Deinit(&audDrv);
 		audDrv = NULL;
 	}
-	if (audDrvLog != NULL)
+	if (AudioCfg.LogAllWave)
 	{
-		RetVal = AudioDrv_Stop(audDrvLog);
-		RetVal = AudioDrv_Deinit(&audDrvLog);
-		audDrvLog = NULL;
+		StopAudioLogging();
+		DeinitAudioLogging();
 	}
 	
 	DeinitChips();
 	
 	return 0x00;
+}
+
+void InitAudioLogging(void)
+{
+	UINT8 RetVal;
+	UINT32 idWaveWrt;
+	AUDDRV_INFO* drvInfo;
+	AUDIO_OPTS* optsLog;
+
+	audDrvLog = NULL;
+	idWaveWrt = GetAudioDriver(ADRVTYPE_DISK, "WaveWrite");
+
+	if (audDrv != NULL && idWaveWrt != (UINT32)-1)
+	{
+		RetVal = AudioDrv_Init(idWaveWrt, &audDrvLog);
+		if (! RetVal)
+		{
+			Audio_GetDriverInfo(idWaveWrt, &drvInfo);
+			if (drvInfo->drvSig == ADRVSIG_WAVEWRT)
+			{
+				AudioDrv_DataForward_Add(audDrv, audDrvLog);
+
+				optsLog = AudioDrv_GetOptions(audDrvLog);
+				*optsLog = *audOpts;
+			}
+		}
+	}
+
+	return;
+}
+
+void DeinitAudioLogging(void)
+{
+	if (audDrvLog != NULL)
+	{
+		StopAudioLogging();
+		AudioDrv_Deinit(&audDrvLog);
+		audDrvLog = NULL;
+	}
+
+	return;
+} 
+
+UINT8 StartAudioLogging(void)
+{
+	UINT8 RetVal;
+	AUDDRV_INFO* drvInfo;
+	void* aDrv;
+
+	if (audDrvLog != NULL)
+	{
+		aDrv = AudioDrv_GetDrvData(audDrvLog);
+		WavWrt_SetFileName(aDrv, WaveLogPath);
+
+		RetVal = AudioDrv_Start(audDrvLog, 0);
+	}
+
+	if (RetVal)
+	{
+		printf("Error opening Audio Logger! (Error Code %02X)\n", RetVal);
+		StopAudioLogging();
+		return 0xC0;
+	}
+
+	return 0x00;
+}
+
+void StopAudioLogging(void)
+{
+	if (audDrvLog != NULL)
+	{
+		AudioDrv_Stop(audDrvLog);
+	}
+
+	return;
+}
+
+void SetAudioLogPath(const char* path)
+{
+	size_t StrLen;
+	
+	StrLen = 0x06 + strlen(path) + 0x05;
+	WaveLogPath = (char*)realloc(WaveLogPath, StrLen);
+	
+	strcpy(WaveLogPath, "dumps/");
+	strcat(WaveLogPath, path);
+	strcat(WaveLogPath, ".wav");
+	
+	return;
 }
 
 void PauseStream(UINT8 PauseOn)
@@ -435,9 +505,17 @@ void PauseStream(UINT8 PauseOn)
 		return;
 	
 	if (PauseOn)
+	{
 		AudioDrv_Pause(audDrv);
+		if (audDrvLog != NULL)
+			AudioDrv_Pause(audDrvLog);
+	}
 	else
+	{
 		AudioDrv_Resume(audDrv);
+		if (audDrvLog != NULL)
+			AudioDrv_Resume(audDrvLog);
+	}	
 	
 	return;
 }

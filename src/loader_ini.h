@@ -54,6 +54,8 @@ typedef struct _config_data
 	UINT8 FM6DACOff;
 	UINT8 ResmplForce;
 	UINT8 DebugMsgs;
+	UINT32 LoopsUntilEnd;
+	char *OnLastSong;
 	
 	EXT_LIST ExtList;
 } CONFIG_DATA;

@@ -1,8 +1,4 @@
-// SMPS Player
-// -----------
-// Written by Valley Bell, 2014-2018
-
-#define SMPSPLAY_VER	"2.20"
+#define SMPSPLAY_VER	"3.0.0"
 //#define BETA
 
 #define _CRTDBG_MAP_ALLOC	// note: no effect in Release builds
@@ -157,11 +153,8 @@ int main(int argc, char* argv[])
 	
 	printf("SMPS Music Player v" SMPSPLAY_VER "\n");
 	printf("-----------------\n");
-#ifdef BETA
-	printf("by Valley Bell, beta version\n");
-#else
-	printf("by Valley Bell\n");
-#endif
+	printf("Original by Valley Bell\n");
+	printf("Modifications by EmreTech\n");
 	
 	InitAudioOutput();
 #ifdef ENABLE_VGM_LOGGING
@@ -178,6 +171,13 @@ int main(int argc, char* argv[])
 	LoadExtentionData(&Config.ExtList);
 	FileList = NULL;
 	
+	if (AudioCfg.LogWave && AudioCfg.LogAllWave)
+	{
+		printf("ERROR: LogWave and LogAllWave are both set in config.ini!\n");
+		printf("Please set only LogWave or LogAllWave.\n");
+		goto FinishProgram;
+	}
+
 	if (! Config.ExtList.ExtCount)
 	{
 		printf("No extentions defined! Closing.\n");
@@ -230,7 +230,8 @@ int main(int argc, char* argv[])
 #else
 	mkdir("dumps", 0755);
 #endif
-	AudioCfg.WaveLogPath = "dumps/out.wav";
+	if (AudioCfg.LogAllWave)
+		SetAudioLogPath("dumps/out.wav");
 	
 #ifdef _WIN32
 #if _WIN32_WINNT >= 0x500
@@ -249,6 +250,9 @@ int main(int argc, char* argv[])
 		goto FinishProgram;
 	
 	InitDriver();
+	if (AudioCfg.LogWave)
+		InitAudioLogging();
+
 	//SMPSExtra_SetCallbacks(SMPSCB_START, NULL);
 	SMPSExtra_SetCallbacks(SMPSCB_STOP, &SmpsStopSignal);
 	SMPSExtra_SetCallbacks(SMPSCB_LOOP, &SmpsLoopSignal);
@@ -368,6 +372,8 @@ int main(int argc, char* argv[])
 				vgm_set_loop(0x00);
 				vgm_dump_stop();
 #endif
+				if (AudioCfg.LogWave)
+					StopAudioLogging(); // this should already be stopped, but just in case
 				
 				SMPS_PlayingTimer = 0;
 				smps_playing = -1;
@@ -388,6 +394,12 @@ int main(int argc, char* argv[])
 #ifdef ENABLE_VGM_LOGGING
 					MakeVgmFileName(FileList[cursor].Title);
 #endif
+					if (AudioCfg.LogWave)
+					{
+						SetAudioLogPath(FileList[cursor].Title);
+						StartAudioLogging();
+					}
+
 					PlayMusic(&LastSmpsCfg);
 					smps_playing = cursor;
 					SMPS_CountdownTimer = 0;
@@ -511,7 +523,13 @@ int main(int argc, char* argv[])
 			if (smps_playing < FileCount - 1)
 				inkey = 'N';
 			else
-				FadeOutMusic();
+			{
+				if (strcmp(Config.OnLastSong, "Fade") != 0)
+					FadeOutMusic();
+				else if (strcmp(Config.OnLastSong, "Quit") != 0)
+					inkey = 'Q';
+				// anything else is interpreted as nothing
+			}
 		}
 		else if (_kbhit())
 		{
@@ -540,6 +558,7 @@ FinishProgram:
 #ifdef ENABLE_VGM_LOGGING
 	vgm_deinit();
 #endif
+	DeinitAudioLogging();
 	DeinitAudioOutput();
 	if (FileList != NULL)
 	{
@@ -947,6 +966,8 @@ static void WaitForKey(void)
 
 static void FinishedSongSignal(void)
 {
+	StopAudioLogging();
+
 	if (AutoProgress)
 	{
 		GoToNextSong = true;
@@ -967,7 +988,7 @@ static void SmpsStopSignal(void)
 
 static void SmpsLoopSignal(void)
 {
-	if (SMPS_LoopCntr >= 2)
+	if (SMPS_LoopCntr >= Config.LoopsUntilEnd)
 		FinishedSongSignal();
 	return;
 }

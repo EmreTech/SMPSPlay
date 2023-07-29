@@ -6,9 +6,9 @@
 typedef struct _audio_config
 {
 	char* AudAPIName;
-	char* WaveLogPath;
 	
 	UINT8 LogWave;
+	UINT8 LogAllWave;
 	UINT8 BitsPerSample;
 	UINT32 SamplePerSec;
 	float Volume;
@@ -25,12 +25,17 @@ typedef enum chip_type
 
 void InitAudioOutput(void);
 void DeinitAudioOutput(void);
+void InitAudioLogging(void);
+void DeinitAudioLogging(void);
 #ifdef _WIN32
 void SetAudioHWnd(void* hWnd);
 #endif
 UINT8 QueryDeviceParams(const char* audAPIName, AUDIO_CFG* retAudioCfg);
 UINT8 StartAudioOutput(void);
 UINT8 StopAudioOutput(void);
+UINT8 StartAudioLogging(void);
+void StopAudioLogging(void);
+void SetAudioLogPath(const char* path);
 void PauseStream(UINT8 PauseOn);
 void ThreadSync(UINT8 PauseAndWait);
 UINT8 ToggleMuteAudioChannel(CHIP chip, UINT8 nChannel);

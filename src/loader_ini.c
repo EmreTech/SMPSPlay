@@ -222,6 +222,10 @@ UINT8 LoadConfigurationFiles(CONFIG_DATA* CfgData, const char* FileName)
 				CfgData->ResmplForce = (UINT8)strtoul(RToken1, NULL, 0);
 			else if (! stricmp(LToken, "DebugMsgs"))
 				CfgData->DebugMsgs = (UINT8)strtoul(RToken1, NULL, 0);
+			else if (! stricmp(LToken, "LoopsUntilEnd"))
+				CfgData->LoopsUntilEnd = (UINT32)strtoul(RToken1, NULL, 0);
+			else if (! stricmp(LToken, "OnLastSong"))
+				strdup_free(&CfgData->OnLastSong, RToken1);
 			else if (! stricmp(LToken, "SamplesPerSec"))
 				AudCfg->SamplePerSec = (UINT32)strtoul(RToken1, NULL, 0);
 			else if (! stricmp(LToken, "BitsPerSample"))
@@ -238,6 +242,8 @@ UINT8 LoadConfigurationFiles(CONFIG_DATA* CfgData, const char* FileName)
 				AudCfg->AudioBufSize = (UINT32)strtoul(RToken1, NULL, 0);
 			else if (! stricmp(LToken, "LogWave"))
 				AudCfg->LogWave = GetBoolValue(RToken1, "True", "False");
+			else if (! stricmp(LToken, "LogAllWave"))
+				AudCfg->LogAllWave = GetBoolValue(RToken1, "True", "False");
 		}
 		else if (Group == 0x10)	// [.ext] group
 		{
